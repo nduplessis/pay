@@ -1,13 +1,13 @@
 module Pay
   module PaddleBilling
     class Customer < Pay::Customer
-      has_many :charges, dependent: :destroy, class_name: "Pay::PaddleBilling::Charge"
-      has_many :subscriptions, dependent: :destroy, class_name: "Pay::PaddleBilling::Subscription"
-      has_many :payment_methods, dependent: :destroy, class_name: "Pay::PaddleBilling::PaymentMethod"
-      has_one :default_payment_method, -> { where(default: true) }, class_name: "Pay::PaddleBilling::PaymentMethod"
+      has_many :charges, dependent: :destroy, class_name: 'Pay::PaddleBilling::Charge'
+      has_many :subscriptions, dependent: :destroy, class_name: 'Pay::PaddleBilling::Subscription'
+      has_many :payment_methods, dependent: :destroy, class_name: 'Pay::PaddleBilling::PaymentMethod'
+      has_one :default_payment_method, -> { where(default: true) }, class_name: 'Pay::PaddleBilling::PaymentMethod'
 
       def api_record_attributes
-        {email: email, name: customer_name}
+        { email:, name: customer_name }
       end
 
       # Retrieves a Paddle::Customer object
@@ -19,22 +19,20 @@ module Pay
       def api_record
         if processor_id?
           ::Paddle::Customer.retrieve(id: processor_id)
-        elsif (pc = ::Paddle::Customer.list(email: email).data&.first)
+        elsif (pc = ::Paddle::Customer.list(email:).data&.first)
           update!(processor_id: pc.id)
           pc
         else
-          pc = ::Paddle::Customer.create(email: email, name: customer_name)
+          pc = ::Paddle::Customer.create(email:, name: customer_name)
           update!(processor_id: sc.id)
           pc
         end
-      rescue ::Paddle::Error => e
+      rescue ::Paddle::Errors::ConflictError => e
         sc = Paddle::Customer.list(email:).data.first
-        if sc.present?
-          pay_customer.update!(processor_id: sc.id)
-          sc
-        else
-          raise Pay::PaddleBilling::Error, e
-        end
+        raise Pay::PaddleBilling::Error, e unless sc.present?
+
+        pay_customer.update!(processor_id: sc.id)
+        sc
       end
 
       # Syncs name and email to Paddle::Customer
@@ -49,7 +47,7 @@ module Pay
 
         items = options[:items]
         opts = options.except(:items).merge(customer_id: processor_id)
-        transaction = ::Paddle::Transaction.create(items: items, **opts)
+        transaction = ::Paddle::Transaction.create(items:, **opts)
 
         attrs = {
           amount: transaction.details.totals.grand_total,
