@@ -2,7 +2,7 @@ require "test_helper"
 
 class Pay::PaddleClassic::Webhooks::SubscriptionUpdatedTest < ActiveSupport::TestCase
   setup do
-    @data = OpenStruct.new JSON.parse(File.read("test/support/fixtures/paddle_classic/subscription_updated.json"))
+    @data = OpenStruct.new json_fixture("paddle_classic/subscription_updated")
     @pay_customer = pay_customers(:paddle_classic)
     @pay_customer.update(processor_id: @data.user_id)
     @pay_customer.subscription.update(processor_id: @data.subscription_id)
@@ -41,8 +41,8 @@ class Pay::PaddleClassic::Webhooks::SubscriptionUpdatedTest < ActiveSupport::Tes
 
   test "subscription is updated with subscription status = paused and on_trial? = true" do
     @data.status = "paused"
-    Pay::Subscription.any_instance.stubs(:on_trial?).returns(true)
-    Pay::Subscription.any_instance.stubs(:trial_ends_at).returns(3.days.from_now.beginning_of_day)
+    Pay::PaddleClassic::Subscription.any_instance.stubs(:on_trial?).returns(true)
+    Pay::PaddleClassic::Subscription.any_instance.stubs(:trial_ends_at).returns(3.days.from_now.beginning_of_day)
     Pay::PaddleClassic::Webhooks::SubscriptionUpdated.new.call(@data)
     assert_equal 3.days.from_now.beginning_of_day, subscription.reload.ends_at
   end

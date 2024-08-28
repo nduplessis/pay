@@ -2,6 +2,25 @@
 
 ### Unreleased
 
+### 8.0.0
+
+* [Breaking] Remove `pay_customer.payment_method_token` virtual attribute. Use `@pay_customer.update_payment_method(token)` instead.
+* [Breaking] Rename `customer` to `api_record`
+* [Breaking] Rename `update_customer!` to `update_api_record`
+* [Breaking] Rename `Pay::PaymentMethod#type` to `Pay::PaymentMethod#payment_method_type`
+* [Breaking] Remove Stripe `checkout_button` partial. Use the Checkout Session `url` directly in a link or server-side redirect.
+* Add Lemon Squeezy support
+  Supports one-time payments and subscriptions
+* Add `Pay.sync(params)` for automatically syncing Stripe Checkout Sessions and Paddle Billing transactions.
+* Lock Pay::Customer record when creating or updating Stripe customer to handle race conditions. #1027
+* LemonSqueezy & Paddle Billing will now find Customers by email since they do not allow duplicates. #1043
+
+### 7.3.0
+
+* Stripe v12
+* Accept Stripe Connect live and test webhooks in production #1001
+* Only sync Stripe Checkout Session charge if it exists
+
 ### 7.2.1
 
 * Use empty string to resume / unpause Stripe subscriptions. #992

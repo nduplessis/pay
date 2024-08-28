@@ -1,11 +1,8 @@
 module Pay
   module Stripe
-    autoload :Billable, "pay/stripe/billable"
-    autoload :Charge, "pay/stripe/charge"
-    autoload :Error, "pay/stripe/error"
-    autoload :Merchant, "pay/stripe/merchant"
-    autoload :PaymentMethod, "pay/stripe/payment_method"
-    autoload :Subscription, "pay/stripe/subscription"
+    class Error < Pay::Error
+      delegate :message, to: :cause
+    end
 
     module Webhooks
       autoload :AccountUpdated, "pay/stripe/webhooks/account_updated"
@@ -30,7 +27,7 @@ module Pay
 
     extend Env
 
-    REQUIRED_VERSION = "~> 11"
+    REQUIRED_VERSION = "~> 12"
 
     # A list of database model names that include Pay
     # Used for safely looking up models with client_reference_id
@@ -64,6 +61,11 @@ module Pay
 
     def self.signing_secret
       find_value_by_name(:stripe, :signing_secret)
+    end
+
+    def self.webhook_receive_test_events
+      value = find_value_by_name(:stripe, :webhook_receive_test_events)
+      value.blank? ? true : ActiveModel::Type::Boolean.new.cast(value)
     end
 
     def self.configure_webhooks
@@ -137,6 +139,16 @@ module Pay
     rescue ActiveRecord::RecordNotFound
       Rails.logger.error "[Pay] Unable to locate record with: #{client_reference_id}"
       nil
+    end
+
+    def self.sync_checkout_session(session_id, stripe_account: nil)
+      checkout_session = ::Stripe::Checkout::Session.retrieve({id: session_id, expand: ["payment_intent.latest_charge"]}, {stripe_account: stripe_account}.compact)
+      case checkout_session.mode
+      when "payment"
+        Pay::Stripe::Charge.sync(checkout_session.payment_intent.latest_charge.id, stripe_account: stripe_account)
+      when "subscription"
+        Pay::Stripe::Subscription.sync(checkout_session.subscription, stripe_account: stripe_account)
+      end
     end
   end
 end

@@ -13,7 +13,7 @@ class Pay::PaddleClassic::Charge::Test < ActiveSupport::TestCase
       paddle_receipt_url: "https://my.paddle.com/receipt/15124577-11018517/57042319-chre8cc6b3d11d5-1696e10c7c",
       created_at: Time.zone.now
     )
-    paddle_charge = charge.processor_charge
+    paddle_charge = charge.api_record
     assert_equal charge.processor_id, paddle_charge[:id].to_s
   end
 
@@ -39,6 +39,6 @@ class Pay::PaddleClassic::Charge::Test < ActiveSupport::TestCase
       created_at: Time.zone.now
     )
 
-    assert_raises(Pay::Error) { charge.refund! }
+    assert_raises(Pay::PaddleClassic::Error) { charge.refund! }
   end
 end

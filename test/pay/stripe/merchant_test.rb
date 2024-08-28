@@ -5,14 +5,11 @@ class Pay::Stripe::ConnectTest < ActiveSupport::TestCase
     @stripe_account_id = "acct_1ISuLNQK2ZHS99Rk"
     @user = User.create!(email: "gob@bluth.com")
     @pay_customer = @user.set_payment_processor :stripe, stripe_account: @stripe_account_id
-    @pay_customer.payment_method_token = "pm_card_visa"
-
-    # Create Stripe customer
-    @pay_customer.customer
+    @pay_customer.update_payment_method "pm_card_visa"
   end
 
   test "connect account customer" do
-    assert_equal ::Stripe::Customer, @user.payment_processor.customer.class
+    assert_equal ::Stripe::Customer, @user.payment_processor.api_record.class
   end
 
   test "connect customer is not on parent account" do
@@ -29,7 +26,7 @@ class Pay::Stripe::ConnectTest < ActiveSupport::TestCase
   test "connect destination charge" do
     @user = User.create!(email: "gob@bluth.com")
     @user.set_payment_processor :stripe
-    @user.payment_processor.payment_method_token = "pm_card_visa"
+    @user.payment_processor.update_payment_method "pm_card_visa"
 
     pay_charge = @user.payment_processor.charge(
       10_00,
@@ -37,7 +34,7 @@ class Pay::Stripe::ConnectTest < ActiveSupport::TestCase
       transfer_data: {destination: @stripe_account_id}
     )
 
-    assert_equal @stripe_account_id, pay_charge.processor_charge.destination
+    assert_equal @stripe_account_id, pay_charge.api_record.destination
   end
 
   test "connect direct subscription" do

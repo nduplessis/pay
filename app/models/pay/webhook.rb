@@ -8,7 +8,7 @@ module Pay
       Pay::Webhooks.instrument type: "#{processor}.#{event_type}", event: rehydrated_event
 
       # Remove after successfully processing
-      destroy
+      # destroy
     end
 
     # Events have already been verified by the webhook, so we just store the raw data
@@ -21,6 +21,8 @@ module Pay
         to_recursive_ostruct(event["data"])
       when "paddle_classic"
         to_recursive_ostruct(event)
+      when "lemon_squeezy"
+        Pay::LemonSqueezy.construct_from_webhook_event(event)
       when "stripe"
         ::Stripe::Event.construct_from(event)
       else

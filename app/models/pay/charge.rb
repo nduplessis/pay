@@ -1,7 +1,5 @@
 module Pay
   class Charge < Pay::ApplicationRecord
-    self.inheritance_column = nil
-
     # Associations
     belongs_to :customer
     belongs_to :subscription, optional: true
@@ -14,10 +12,6 @@ module Pay
     # Validations
     validates :amount, presence: true
     validates :processor_id, presence: true, uniqueness: {scope: :customer_id, case_sensitive: true}
-
-    # Store the payment method kind (card, paypal, etc)
-    store_accessor :data, :paddle_receipt_url
-    store_accessor :data, :stripe_receipt_url
 
     # Payment method attributes
     store_accessor :data, :payment_method_type # card, paypal, sepa, etc
@@ -44,7 +38,7 @@ module Pay
     store_accessor :data, :refunds # array of refunds
 
     # Helpers for payment processors
-    %w[braintree stripe paddle_billing paddle_classic fake_processor].each do |processor_name|
+    %w[braintree stripe paddle_billing paddle_classic lemon_squeezy fake_processor].each do |processor_name|
       define_method :"#{processor_name}?" do
         customer.processor == processor_name
       end
@@ -52,31 +46,12 @@ module Pay
       scope processor_name, -> { joins(:customer).where(pay_customers: {processor: processor_name}) }
     end
 
-    delegate :capture, :credit_note!, :credit_notes, to: :payment_processor
-
     def self.find_by_processor_and_id(processor, processor_id)
       joins(:customer).find_by(processor_id: processor_id, pay_customers: {processor: processor})
     end
 
-    def self.pay_processor_for(name)
-      "Pay::#{name.to_s.classify}::Charge".constantize
-    end
-
-    def payment_processor
-      @payment_processor ||= self.class.pay_processor_for(customer.processor).new(self)
-    end
-
-    def processor_charge
-      payment_processor.charge
-    end
-
     def captured?
       amount_captured > 0
-    end
-
-    def refund!(refund_amount = nil)
-      refund_amount ||= amount
-      payment_processor.refund!(refund_amount)
     end
 
     def refunded?

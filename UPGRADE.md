@@ -2,6 +2,15 @@
 
 Follow this guide to upgrade older Pay versions. These may require database migrations and code changes.
 
+### ** Pay 7.0 to Pay 8.0**
+
+```bash
+rails pay:install:migrations
+rails db:migrate
+```
+
+The `PaymentMethod#type` column has been renamed to `payment_method_type`. If you're displaying payment method details, you'll need to update your views to use the new column name.
+
 ## **Pay 6.0 to Pay 7.0**
 
 Pay 7 introduces some changes for Stripe and requires a few additional columns.

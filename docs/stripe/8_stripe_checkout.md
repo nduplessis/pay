@@ -2,7 +2,10 @@
 
 [Stripe Checkout](https://stripe.com/docs/payments/checkout) allows you to simply redirect to Stripe for handling payments. The main benefit is that it's super fast to setup payments in your application, they're SCA compatible, and they will get improved automatically by Stripe.
 
-📝 **Warning**: You need to configure webhooks before using Stripe Checkout otherwise your application won't be updated with the correct data.
+> [!WARNING]
+> You need to configure webhooks before using Stripe Checkout otherwise your application won't be updated with the correct data.
+>
+> See [Webhooks](/docs/stripe/5_webhooks.md) section on how to do that.
 
 ![stripe checkout example](https://i.imgur.com/nFsCBCK.gif)
 
@@ -41,7 +44,7 @@ class SubscriptionsController < ApplicationController
     @checkout_session = current_user.payment_processor.checkout(mode: "setup")
 
     # If you want to redirect directly to checkout
-    redirect_to @checkout_session.url, allow_other_host: true, status: :see_other
+    # redirect_to @checkout_session.url, allow_other_host: true, status: :see_other
   end
 end
 ```
@@ -49,12 +52,17 @@ end
 Then link to it in your view:
 
 ```erb
-<%= link_to "Checkout", checkout_path, data: { turbo: false } %>
+<%= link_to "Checkout", @checkout_session.url %>
 ```
 
-**NOTE:** Due to a [bug](https://github.com/hotwired/turbo/issues/211#issuecomment-966570923) in the browser's `fetch` implementation, you will need to disable Turbo if redirecting to Stripe checkout server-side.
+> [!NOTE]
+> Due to a [bug](https://github.com/hotwired/turbo/issues/211#issuecomment-966570923) in the browser's `fetch` implementation, you will need to disable Turbo if redirecting to Stripe checkout server-side.
+>
+> ```erb
+> <%= link_to "Checkout", checkout_path, data: { turbo: false } %>
+> ```
 
-The `session_id` param will be included on success and cancel URLs automatically. This allows you to lookup the checkout session on your success page and confirm the payment was successful before fulfilling the customer's purchase.
+The `stripe_checkout_session_id` param will be included on success and cancel URLs automatically. This allows you to lookup the checkout session on your success page and confirm the payment was successful before fulfilling the customer's purchase.
 
 https://stripe.com/docs/payments/checkout/custom-success-page
 
