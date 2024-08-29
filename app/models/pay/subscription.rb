@@ -8,14 +8,18 @@ module Pay
     has_many :charges
 
     # Scopes
-    scope :for_name, ->(name) { where(name: name) }
-    scope :on_trial, -> { where(status: ["on_trial", "trialing", "active"]).where("trial_ends_at > ?", Time.current) }
+    scope :for_name, ->(name) { where(name:) }
+    scope :on_trial, -> { where(status: %w[on_trial trialing active]).where('trial_ends_at > ?', Time.current) }
     scope :canceled, -> { where.not(ends_at: nil) }
     scope :cancelled, -> { canceled }
-    scope :on_grace_period, -> { where("#{table_name}.ends_at IS NOT NULL AND #{table_name}.ends_at > ?", Time.current) }
-    scope :active, -> { where(status: "active").pause_not_started.where("#{table_name}.ends_at IS NULL OR #{table_name}.ends_at > ?", Time.current).or(on_trial) }
-    scope :paused, -> { where(status: "paused").or(where("pause_starts_at <= ?", Time.current)) }
-    scope :pause_not_started, -> { where("pause_starts_at IS NULL OR pause_starts_at > ?", Time.current) }
+    scope :on_grace_period, lambda {
+                              where("#{table_name}.ends_at IS NOT NULL AND #{table_name}.ends_at > ?", Time.current)
+                            }
+    scope :active, lambda {
+                     where(status: 'active').pause_not_started.where("#{table_name}.ends_at IS NULL OR #{table_name}.ends_at > ?", Time.current).or(on_trial)
+                   }
+    scope :paused, -> { where(status: 'paused').or(where('pause_starts_at <= ?', Time.current)) }
+    scope :pause_not_started, -> { where('pause_starts_at IS NULL OR pause_starts_at > ?', Time.current) }
     scope :active_or_paused, -> { active.or(paused) }
     scope :incomplete, -> { where(status: :incomplete) }
     scope :past_due, -> { where(status: :past_due) }
@@ -35,9 +39,9 @@ module Pay
 
     # Validations
     validates :name, presence: true
-    validates :processor_id, presence: true, uniqueness: {scope: :customer_id, case_sensitive: true}
+    validates :processor_id, presence: true, uniqueness: { scope: :customer_id, case_sensitive: true }
     validates :processor_plan, presence: true
-    validates :quantity, presence: true, numericality: {only_integer: true, greater_than_or_equal_to: 0}
+    validates :quantity, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
     validates :status, presence: true
 
     # Helper methods for payment processors
@@ -46,11 +50,11 @@ module Pay
         customer.processor == processor_name
       end
 
-      scope processor_name, -> { joins(:customer).where(pay_customers: {processor: processor_name}) }
+      scope processor_name, -> { joins(:customer).where(pay_customers: { processor: processor_name }) }
     end
 
     def self.find_by_processor_and_id(processor, processor_id)
-      joins(:customer).find_by(processor_id: processor_id, pay_customers: {processor: processor})
+      joins(:customer).find_by(processor_id:, pay_customers: { processor: })
     end
 
     def sync!(**options)
@@ -103,20 +107,24 @@ module Pay
     # Otherwise a subscription is active unless it has ended or is currently paused
     # Check the subscription status so we don't accidentally consider "incomplete", "unpaid", or other statuses as active
     def active?
-      ["trialing", "active"].include?(status) &&
+      %w[trialing active].include?(status) &&
         (!(canceled? || paused?) || on_trial? || on_grace_period?)
     end
 
+    def paused?
+      status == 'paused'
+    end
+
     def past_due?
-      status == "past_due"
+      status == 'past_due'
     end
 
     def unpaid?
-      status == "unpaid"
+      status == 'unpaid'
     end
 
     def incomplete?
-      status == "incomplete"
+      status == 'incomplete'
     end
 
     def has_incomplete_payment?
@@ -132,7 +140,7 @@ module Pay
 
     def cancel_if_active
       cancel_now! if active?
-    rescue => e
+    rescue StandardError => e
       Rails.logger.info "[Pay] Unable to automatically cancel subscription `#{customer.processor} #{id}`: #{e.message}"
     end
   end
