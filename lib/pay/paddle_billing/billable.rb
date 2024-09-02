@@ -4,18 +4,18 @@ module Pay
       attr_reader :pay_customer
 
       delegate :processor_id,
-               :processor_id?,
-               :email,
-               :customer_name,
-               :card_token,
-               to: :pay_customer
+        :processor_id?,
+        :email,
+        :customer_name,
+        :card_token,
+        to: :pay_customer
 
       def initialize(pay_customer)
         @pay_customer = pay_customer
       end
 
       def customer_attributes
-        { email:, name: customer_name }
+        {email: email, name: customer_name}
       end
 
       # Retrieves a Paddle::Customer object
@@ -27,20 +27,13 @@ module Pay
       def customer
         if processor_id?
           ::Paddle::Customer.retrieve(id: processor_id)
-        elsif (pc = ::Paddle::Customer.list(email:).data&.first)
-          update!(processor_id: pc.id)
-          pc
         else
-          pc = ::Paddle::Customer.create(email:, name: customer_name)
-          update!(processor_id: sc.id)
-          pc
+          sc = ::Paddle::Customer.create(email: email, name: customer_name)
+          pay_customer.update!(processor_id: sc.id)
+          sc
         end
-      rescue ::Paddle::Errors::ConflictError => e
-        sc = Paddle::Customer.list(email:).data.first
-        raise Pay::PaddleBilling::Error, e unless sc.present?
-
-        pay_customer.update!(processor_id: sc.id)
-        sc
+      rescue ::Paddle::Error => e
+        raise Pay::PaddleBilling::Error, e
       end
 
       # Syncs name and email to Paddle::Customer
@@ -56,7 +49,7 @@ module Pay
 
         items = options[:items]
         opts = options.except(:items).merge(customer_id: processor_id)
-        transaction = ::Paddle::Transaction.create(items:, **opts)
+        transaction = ::Paddle::Transaction.create(items: items, **opts)
 
         attrs = {
           amount: transaction.details.totals.grand_total,
@@ -79,12 +72,11 @@ module Pay
       # Paddle does not use payment method tokens. The method signature has it here
       # to have a uniform API with the other payment processors.
       def add_payment_method(token = nil, default: true)
-        Pay::PaddleBilling::PaymentMethod.sync(pay_customer:)
+        Pay::PaddleBilling::PaymentMethod.sync(pay_customer: pay_customer)
       end
 
       def trial_end_date(subscription)
-        return unless subscription.state == 'trialing'
-
+        return unless subscription.state == "trialing"
         Time.zone.parse(subscription.next_payment[:date]).end_of_day
       end
 
